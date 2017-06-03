@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using Newtonsoft.Json;
@@ -13,7 +14,7 @@ namespace ProcessVehicleImages
             Console.Write("Enter image file path: ");
             string imageFilePath = Console.ReadLine();
             if (string.IsNullOrEmpty(imageFilePath))
-                imageFilePath = @"C:\Users\brian\Downloads\Images\fedex.jpg";
+                imageFilePath = @"https://images.craigslist.org/00w0w_nSOqjjf0l5_1200x900.jpg"; //  @"C:\Users\brian\Downloads\Images\fedex.jpg";
 
             // C:\Users\brian\Downloads\Images\fedex.jpg     // FedEx truck
             // C:\Users\brian\Downloads\Images\00w0w_nSOqjjf0l5_600x450.jpg // Craigslist Ad
@@ -48,9 +49,10 @@ namespace ProcessVehicleImages
             const string uri = "https://westus.api.cognitive.microsoft.com/vision/v1.0/ocr?" + requestParameters;
 
             // Request body. Try this sample with a locally stored JPEG image.
-            var byteData = GetImageAsByteArray(imageFilePath);
+            // var byteData = GetImageAsByteArray(imageFilePath);
+            var byteDate = DownloadRemoteImageFile(imageFilePath);
 
-            using (var content = new ByteArrayContent(byteData))
+            using (var content = new ByteArrayContent(byteDate))
             {
                 // This example uses content type "application/octet-stream".
                 // The other content types you can use are "application/json" and "multipart/form-data".
@@ -60,6 +62,13 @@ namespace ProcessVehicleImages
                 var theOutput = JsonConvert.DeserializeObject(outputString);
                 Console.WriteLine(theOutput);
             }
+        }
+
+        private static byte[] DownloadRemoteImageFile(string uri)
+        {
+            var webClient = new WebClient();
+            byte[] imageBytes = webClient.DownloadData(uri);
+            return imageBytes;
         }
 
     }
