@@ -1,1 +1,3 @@
+https://www.hanselman.com/blog/BestPracticesForPrivateConfigDataAndConnectionStringsInConfigurationInASPNETAndAzure.aspx
+
 https://cloud.openalpr.com/ - Software to process license plates
