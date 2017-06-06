@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
@@ -12,54 +14,66 @@ namespace ProcessVehicleImages
 {
     class Program
     {
+        private static AppSettingsReader _appSettingsReader;
+
+        private static ImageData _imageData;
+
+        private static ImageDownloader _imageDownloader;
+
         static void Main(string[] args)
         {
             Console.Write("Enter image file path: ");
 
             string imageFilePath = Console.ReadLine();
             if (string.IsNullOrEmpty(imageFilePath))
-                imageFilePath = @"https://images.craigslist.org/00w0w_nSOqjjf0l5_1200x900.jpg"; //  @"C:\Users\brian\Downloads\Images\mustang.jpg";
+                imageFilePath = @"https://images.craigslist.org/00w0w_nSOqjjf0l5_1200x900.jpg";
 
             imageFilePath = @"C:\Users\brian\Downloads\Images\audi.jpg";
-            
+
             Console.WriteLine("Image : " + imageFilePath);
-            // C:\Users\brian\Downloads\Images\fedex.jpg     // FedEx truck
-            // C:\Users\brian\Downloads\Images\00w0w_nSOqjjf0l5_600x450.jpg // Craigslist Ad
-            // C:\Users\brian\Downloads\Images\acura.jpg             // acura car 
-            MakeOCRRequest(imageFilePath);
+
+            _appSettingsReader = new AppSettingsReader();
+            _imageData = new ImageData();
+
+            var imageBytes = _imageDownloader.DownloadRemoteImageFile(imageFilePath);
+            ProcessImageFile(imageBytes);
 
             Console.WriteLine("\n\n\nHit ENTER to exit...");
             Console.ReadLine();
         }
 
-        static byte[] GetImageAsByteArray(string imageFilePath)
+        private static void ImageDataOnInfoParsed(object sender, InfoParsedEventArgs infoParsedEventArgs)
         {
-            FileStream fileStream = new FileStream(imageFilePath, FileMode.Open, FileAccess.Read);
-            BinaryReader binaryReader = new BinaryReader(fileStream);
-            return binaryReader.ReadBytes((int)fileStream.Length);
+            ProcessLicensePlate(infoParsedEventArgs.ImageDataBytes);
+        }
+
+        static void ProcessImageFile(byte[] imageData)
+        {
+            MakeOcrRequest(imageData);
         }
 
 
-        static async void MakeOCRRequest(string imageFilePath)
+        async void MakeOcrRequest(byte[] byteData)
         {
             var client = new HttpClient();
 
-            // Request headers. Replace the example key with a valid subscription key.
-            client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", "3520fc34cd1142deb13b9f961746b9c1");
+            var msftKey = _appSettingsReader.GetValue("MsftApiSubscriptionKey", typeof(string)).ToString();
+            var ocrParams = _appSettingsReader.GetValue("OcrRequestParams", typeof(string)).ToString();
 
-            // Request parameters and URI
-            const string requestParameters = "language=en&detectOrientation=true";
+            client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", msftKey);
 
             // NOTE: You must use the same location in your REST call as you used to obtain your subscription keys.
             //   For example, if you obtained your subscription keys from westus, replace "westcentralus" in the 
             //   URI below with "westus".
-            const string uri = "https://westus.api.cognitive.microsoft.com/vision/v1.0/ocr?" + requestParameters;
+            var uri = "https://westus.api.cognitive.microsoft.com/vision/v1.0/ocr?" + ocrParams;
 
-            // Request body. Try this sample with a locally stored JPEG image.
-            // var byteData = GetImageAsByteArray(imageFilePath);
-            var byteDate = DownloadRemoteImageFile(imageFilePath);
+            var args = new InfoParsedEventArgs
+            {
+                ImageDataBytes = byteData,
+                InfoData = new List<ImageDataDetail>()
+            };
 
-            using (var content = new ByteArrayContent(byteDate))
+            using (var content = new ByteArrayContent(byteData))
             {
                 // This example uses content type "application/octet-stream".
                 // The other content types you can use are "application/json" and "multipart/form-data".
@@ -67,25 +81,28 @@ namespace ProcessVehicleImages
                 var response = await client.PostAsync(uri, content);
                 var outputString = await response.Content.ReadAsStringAsync();
                 var theOutput = JsonConvert.DeserializeObject(outputString);
+                var m = JsonConvert.DeserializeObject(theOutput.ToString());
+
+                args.InfoData.Add(new ImageDataDetail { Key = "", Value = "" });
+
+
                 Console.WriteLine(theOutput);
                 Debug.WriteLine(theOutput);
             }
 
-            ProcessLicensePlate(byteDate);
+            OnInfoParsed(args);
+
         }
 
-        private static byte[] DownloadRemoteImageFile(string uri)
-        {
-            var webClient = new WebClient();
-            byte[] imageBytes = webClient.DownloadData(uri);
-            return imageBytes;
-        }
+        public event EventHandler<InfoParsedEventArgs> InfoParsed;
+
+
 
         private static void ProcessLicensePlate(byte[] imageByteArray)
         {
             var apiInstance = new DefaultApi();
             var imageBytes = Convert.ToBase64String(imageByteArray);  // string | The image file that you wish to analyze encoded in base64 
-            var secretKey = "";  // string | The secret key used to authenticate your account.  You can view your  secret key by visiting  https://cloud.openalpr.com/ 
+            var secretKey = _appSettingsReader.GetValue("OpenAlprKey", typeof(string));  // string | The secret key used to authenticate your account.  You can view your  secret key by visiting  https://cloud.openalpr.com/ 
             var country = "us";  // string | Defines the training data used by OpenALPR.  \"us\" analyzes  North-American style plates.  \"eu\" analyzes European-style plates.  This field is required if using the \"plate\" task  You may use multiple datasets by using commas between the country  codes.  For example, 'au,auwide' would analyze using both the  Australian plate styles.  A full list of supported country codes  can be found here https://github.com/openalpr/openalpr/tree/master/runtime_data/config 
             var recognizeVehicle = 56;  // int? | If set to 1, the vehicle will also be recognized in the image This requires an additional credit per request  (optional)  (default to 0)
             var state = "";  // string | Corresponds to a US state or EU country code used by OpenALPR pattern  recognition.  For example, using \"md\" matches US plates against the  Maryland plate patterns.  Using \"fr\" matches European plates against  the French plate patterns.  (optional)  (default to )
@@ -95,18 +112,20 @@ namespace ProcessVehicleImages
 
             try
             {
-                InlineResponse200 result = apiInstance.RecognizeBytes(imageBytes, secretKey, country, recognizeVehicle, state, returnImage, topn, prewarp);
+                InlineResponse200 result = apiInstance.RecognizeBytes(imageBytes, secretKey.ToString(), country, recognizeVehicle, state, returnImage, topn, prewarp);
                 Console.WriteLine(result);
                 Debug.WriteLine(result);
 
-                var outputString = "Results count = " + result.Results;
+                //var outputString = "Results count = " + result.Results;
 
                 foreach (var plate in result.Results)
                 {
-                    outputString += Environment.NewLine + "Region = " + plate.Region + " Plate = " + plate.Plate;
+                    // outputString += Environment.NewLine + "Region = " + plate.Region + " Plate = " + plate.Plate;
+                    _imageData.ImageDataValues.Add(new ImageDataDetail { Key = "Region", Value = plate.Region });
+                    _imageData.ImageDataValues.Add(new ImageDataDetail { Key = "Plate", Value = plate.Plate });
                 }
-                Console.WriteLine(outputString);
-                Debug.WriteLine(outputString);
+                //Console.WriteLine(outputString);
+                //Debug.WriteLine(outputString);
             }
             catch (Exception e)
             {
@@ -114,5 +133,37 @@ namespace ProcessVehicleImages
             }
         }
 
+        protected virtual void OnInfoParsed(InfoParsedEventArgs e)
+        {
+            EventHandler<InfoParsedEventArgs> handler = InfoParsed;
+            if (handler != null)
+            {
+                handler(this, e);
+            }
+        }
+
+
+    }
+
+    public class ImageDownloader
+    {
+        static byte[] GetImageFileAsByteArray(string imageFilePath)
+        {
+            FileStream fileStream = new FileStream(imageFilePath, FileMode.Open, FileAccess.Read);
+            BinaryReader binaryReader = new BinaryReader(fileStream);
+            return binaryReader.ReadBytes((int)fileStream.Length);
+        }
+        public byte[] DownloadRemoteImageFile(string uri)
+        {
+            var webClient = new WebClient();
+            var imageBytes = webClient.DownloadData(uri);
+            return imageBytes;
+        }
+    }
+
+    public class InfoParsedEventArgs : EventArgs
+    {
+        public List<ImageDataDetail> InfoData { get; set; }
+        public byte[] ImageDataBytes { get; set; }
     }
 }
