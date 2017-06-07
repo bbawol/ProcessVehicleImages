@@ -24,8 +24,8 @@ namespace ProcessVehicleImages
 
             Console.WriteLine("Image : " + imageFilePath);
 
-            var imageBytes = imageFilePath.ToString(CultureInfo.InvariantCulture).Contains(@"://") 
-                ? ImageDownloader.DownloadRemoteImageFile(imageFilePath) 
+            var imageBytes = imageFilePath.ToString(CultureInfo.InvariantCulture).Contains(@"://")
+                ? ImageDownloader.DownloadRemoteImageFile(imageFilePath)
                 : ImageDownloader.GetImageFileAsByteArray(imageFilePath);
 
             if (imageBytes == null || imageBytes.Length == 0)
@@ -34,23 +34,47 @@ namespace ProcessVehicleImages
                 return;
             }
 
-            #region Microsoft Service Call
+            #region Microsoft Service Calls
 
-            var msftUri = AppSettingsReader.GetValue("MsftUri", typeof(string)).ToString();
             var msftKey = AppSettingsReader.GetValue("MsftApiSubscriptionKey", typeof(string)).ToString();
-            var msftParams = AppSettingsReader.GetValue("MsftRequestParams", typeof(string)).ToString();
             var msftHeader = AppSettingsReader.GetValue("MssftApiHeader", typeof(string)).ToString();
 
-            var microsoftProcessor = new ImageProcessor(new MicrosoftImageApi
+            #region OCR Invocation
+
+
+            var msftOcrUri = AppSettingsReader.GetValue("MsftOcrUri", typeof(string)).ToString();
+            var msftOcrParams = AppSettingsReader.GetValue("MsftOcrRequestParams", typeof(string)).ToString();
+
+            var microsoftOcrProcessor = new ImageProcessor(new MicrosoftOcrImageApi
             {
-                ApiUri = msftUri,
+                ApiUri = msftOcrUri,
                 ApiKey = msftKey,
-                ApiParams = msftParams,
+                ApiParams = msftOcrParams,
                 ImageData = imageBytes,
                 ApiHeader = msftHeader
             });
 
-            var msftList = microsoftProcessor.ExtractImageDetails();
+            var msftOcrList = microsoftOcrProcessor.ExtractImageDetails();
+
+            #endregion
+
+            #region Description Invocation
+
+            var msftDescribeUri = AppSettingsReader.GetValue("MsftDescribeUri", typeof(string)).ToString();
+            var msftDescribeParams = AppSettingsReader.GetValue("MsftDescribeRequestParams", typeof(string)).ToString();
+
+            var microsoftDescribeProcessor = new ImageProcessor(new MicrosoftDescriptionImageApi
+            {
+                ApiHeader = msftHeader,
+                ApiKey = msftKey,
+                ApiUri = msftDescribeUri,
+                ApiParams = msftDescribeParams,
+                ImageData = imageBytes
+            });
+
+            var msftDescribeList = microsoftDescribeProcessor.ExtractImageDetails();
+
+            #endregion
 
             #endregion
 
@@ -70,7 +94,7 @@ namespace ProcessVehicleImages
 
             #endregion
 
-            var finalList = msftList.Concat(alprList).GroupBy(d => d.Key)
+            var finalList = msftOcrList.Concat(alprList).Concat(msftDescribeList).GroupBy(d => d.Key)
              .ToDictionary(d => d.Key, d => d.First().Value);
 
             foreach (var keyValuePair in finalList)

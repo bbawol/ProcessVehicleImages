@@ -9,80 +9,69 @@ using Newtonsoft.Json.Linq;
 
 namespace ProcessVehicleImages
 {
-    public class MicrosoftImageApi : IImageApiService
+    public class MicrosoftDescriptionImageApi : IImageApiService
     {
-        public Dictionary<string, string> ExtractedFields { get; set; }
+        #region Properties
 
+        public Dictionary<string, string> ExtractedFields { get; set; }
         public string ApiUri { get; set; }
         public string ApiKey { get; set; }
         public string ApiParams { get; set; }
         public string ApiHeader { get; set; }
-
         public byte[] ImageData { private get; set; }
 
+        #endregion
+
         public Dictionary<string, string> InvokeApiService()
-        {
-            var t = Task.Run(() => GenerateOutput());
-            t.Wait();
-
-            return ExtractedFields;
-        }
-
-        private async void GenerateOutput()
         {
             if (ExtractedFields == null)
                 ExtractedFields = new Dictionary<string, string>();
 
+            var t = Task.Run(GenerateOutput);
+
+            t.Wait();
+            return t.Result;
+        }
+
+        private async Task<Dictionary<string, string>> GenerateOutput()
+        {
             var client = new HttpClient();
             client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", ApiKey);
 
             // NOTE: You must use the same location in your REST call as you used to obtain your subscription keys.
             //   For example, if you obtained your subscription keys from westus, replace "westcentralus" in the 
             //   URI below with "westus".
-            var uri = string.Concat(ApiUri,ApiParams);
-            var wordCount = 0;
+            var uri = string.Concat(ApiUri, ApiParams);
 
             using (var content = new ByteArrayContent(ImageData))
             {
-
                 // This example uses content type "application/octet-stream".
                 // The other content types you can use are "application/json" and "multipart/form-data".
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
                 var response = await client.PostAsync(uri, content);
                 var outputString = await response.Content.ReadAsStringAsync();
-
                 var theOutput = JsonConvert.DeserializeObject(outputString);
-                //var m = JsonConvert.DeserializeObject(theOutput.ToString());
-
                 var imageData = JObject.Parse(theOutput.ToString());
-                var regions = (from d in imageData["regions"] select d).ToList();
+                var tags = (from t in imageData["description"]["tags"] select t).ToList();
+                var captions = (from c in imageData["description"]["captions"] select c);
+                var tagCount = 0;
 
-                foreach (var region in regions)
+                foreach (var tag in tags)
                 {
-                    foreach (var line in region["lines"])
-                    {
-                        foreach (var word in line["words"])
-                        {
-                            var parsedWord = word["text"];
-                            ExtractedFields.Add("FoundWord-"+wordCount++, parsedWord.ToString());
-                        }
-                    }
+                    ExtractedFields.Add("Tag-" + tagCount++, tag.ToString());
+                    Debug.WriteLine("Tag:" + tag);
                 }
 
-                //var lines = from r in regions select r["lines"];
-
-                //foreach (var line in lines)
-                //{
-                //    var words = from l in line[""]
-                //}
-
-                //var words = from l in lines select (string)l["words"];
-
-                //ExtractedFields.Add("aaa", "blah");
-
-                Debug.WriteLine(theOutput);
+                var captionCount = 0;
+                foreach (var caption in captions)
+                {
+                    var parsedCaption = caption["text"];
+                    ExtractedFields.Add("FoundWord-" + captionCount++, parsedCaption.ToString());
+                    Debug.WriteLine("Caption: " + parsedCaption);
+                }
             }
+            return ExtractedFields;
         }
     }
 }

@@ -8,12 +8,14 @@ namespace ProcessVehicleImages
 {
     public class OpenAlprApi : IImageApiService
     {
+        #region Properties
+
         public string ApiUri { get; set; }
         public string ApiKey { get; set; }
-
         public byte[] ImageData { private get; set; }
+        public Dictionary<string, string> ExtractedFields { get; set; } 
 
-        public Dictionary<string, string> ExtractedFields { get; set; }
+        #endregion
 
         public Dictionary<string, string> InvokeApiService()
         {

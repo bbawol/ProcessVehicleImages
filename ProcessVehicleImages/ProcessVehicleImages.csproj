@@ -49,7 +49,8 @@
     <Compile Include="IImageApiService.cs" />
     <Compile Include="ImageData.cs" />
     <Compile Include="ImageProcessor.cs" />
-    <Compile Include="MicrosoftImageApi.cs" />
+    <Compile Include="MicrosoftDescriptionImageApi.cs" />
+    <Compile Include="MicrosoftOcrImageApi.cs" />
     <Compile Include="OpenAlprApi.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
