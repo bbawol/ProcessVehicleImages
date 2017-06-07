@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Configuration;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -16,14 +17,16 @@ namespace ProcessVehicleImages
 
             Console.Write("Enter image file path: ");
 
-            string imageFilePath = Console.ReadLine();
+            var imageFilePath = Console.ReadLine();
 
             if (string.IsNullOrEmpty(imageFilePath))
                 imageFilePath = AppSettingsReader.GetValue("DebugImageFilePath", typeof(string)).ToString();
 
             Console.WriteLine("Image : " + imageFilePath);
 
-            var imageBytes = ImageDownloader.DownloadRemoteImageFile(imageFilePath);
+            var imageBytes = imageFilePath.ToString(CultureInfo.InvariantCulture).Contains(@"://") 
+                ? ImageDownloader.DownloadRemoteImageFile(imageFilePath) 
+                : ImageDownloader.GetImageFileAsByteArray(imageFilePath);
 
             if (imageBytes == null || imageBytes.Length == 0)
             {
@@ -31,19 +34,20 @@ namespace ProcessVehicleImages
                 return;
             }
 
-
             #region Microsoft Service Call
 
             var msftUri = AppSettingsReader.GetValue("MsftUri", typeof(string)).ToString();
             var msftKey = AppSettingsReader.GetValue("MsftApiSubscriptionKey", typeof(string)).ToString();
             var msftParams = AppSettingsReader.GetValue("MsftRequestParams", typeof(string)).ToString();
+            var msftHeader = AppSettingsReader.GetValue("MssftApiHeader", typeof(string)).ToString();
 
             var microsoftProcessor = new ImageProcessor(new MicrosoftImageApi
             {
                 ApiUri = msftUri,
                 ApiKey = msftKey,
                 ApiParams = msftParams,
-                ImageData = imageBytes
+                ImageData = imageBytes,
+                ApiHeader = msftHeader
             });
 
             var msftList = microsoftProcessor.ExtractImageDetails();
@@ -70,7 +74,7 @@ namespace ProcessVehicleImages
              .ToDictionary(d => d.Key, d => d.First().Value);
 
             foreach (var keyValuePair in finalList)
-                Console.WriteLine("\n\n" + keyValuePair.Key + " - " + keyValuePair.Value);
+                Console.WriteLine("\n\nKey=" + keyValuePair.Key + " | Value=" + keyValuePair.Value);
 
             Console.WriteLine("\n\n\nHit ENTER to exit...");
             Console.ReadLine();
@@ -79,7 +83,7 @@ namespace ProcessVehicleImages
 
     public class ImageDownloader
     {
-        static byte[] GetImageFileAsByteArray(string imageFilePath)
+        public static byte[] GetImageFileAsByteArray(string imageFilePath)
         {
             FileStream fileStream = new FileStream(imageFilePath, FileMode.Open, FileAccess.Read);
             BinaryReader binaryReader = new BinaryReader(fileStream);

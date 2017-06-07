@@ -7,7 +7,6 @@ namespace ProcessVehicleImages
     {
         string ApiUri { get; set; }
         string ApiKey { get; set; }
-        string ApiParams { get; set; }
         byte[] ImageData { set; }
         Dictionary<string, string> ExtractedFields { get; set; }
 

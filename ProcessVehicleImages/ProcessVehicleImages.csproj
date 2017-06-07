@@ -37,7 +37,6 @@
       <HintPath>..\packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
-    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -58,12 +57,13 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="app.secrets.config">
+      <SubType>Designer</SubType>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\..\..\code\openalpr\cloudapi-master\csharp\src\OpenAlprApi\OpenAlprApi.csproj">
+    <ProjectReference Include="..\..\cloudapi\csharp\src\OpenAlprApi\OpenAlprApi.csproj">
       <Project>{28674e2c-c26d-4e6d-a26c-efb062e9348e}</Project>
       <Name>OpenAlprApi</Name>
     </ProjectReference>

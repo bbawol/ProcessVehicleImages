@@ -260,3 +260,4 @@ paket-files/
 __pycache__/
 *.pyc
 /ProcessVehicleImages/App.SECRETS.Config
+/ProcessVehicleImages/app.secret.config

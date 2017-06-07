@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Net.Http;
-using System.Threading.Tasks;
 using OpenAlprApi.Api;
 using OpenAlprApi.Model;
 
@@ -12,7 +10,6 @@ namespace ProcessVehicleImages
     {
         public string ApiUri { get; set; }
         public string ApiKey { get; set; }
-        public string ApiParams { get; set; }
 
         public byte[] ImageData { private get; set; }
 
@@ -20,6 +17,9 @@ namespace ProcessVehicleImages
 
         public Dictionary<string, string> InvokeApiService()
         {
+            if (ExtractedFields == null)
+                ExtractedFields = new Dictionary<string, string>();
+
             var apiInstance = new DefaultApi();
             var imageBytes = Convert.ToBase64String(ImageData);  // string | The image file that you wish to analyze encoded in base64 
             var secretKey = ApiKey;  // string | The secret key used to authenticate your account.  You can view your  secret key by visiting  https://cloud.openalpr.com/ 
@@ -33,7 +33,6 @@ namespace ProcessVehicleImages
             try
             {
                 InlineResponse200 result = apiInstance.RecognizeBytes(imageBytes, secretKey.ToString(), country, recognizeVehicle, state, returnImage, topn, prewarp);
-                Console.WriteLine(result);
                 Debug.WriteLine(result);
 
                 foreach (var plate in result.Results)
@@ -41,9 +40,6 @@ namespace ProcessVehicleImages
                     ExtractedFields.Add("Region", plate.Region);
                     ExtractedFields.Add("Plate", plate.Plate);
                 }
-                //Console.WriteLine(outputString);
-                //Debug.WriteLine(outputString);
-
                 return ExtractedFields;
             }
             catch (Exception e)
