@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace ProcessVehicleImages
 {
@@ -9,7 +8,6 @@ namespace ProcessVehicleImages
         string ApiKey { get; set; }
         byte[] ImageData { set; }
         Dictionary<string, string> ExtractedFields { get; set; }
-
         Dictionary<string, string> InvokeApiService();
     }
 }

@@ -36,7 +36,7 @@ namespace ProcessVehicleImages
         private async Task<Dictionary<string, string>> GenerateOutput()
         {
             var client = new HttpClient();
-            client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", ApiKey);
+            client.DefaultRequestHeaders.Add(ApiHeader, ApiKey);
 
             // NOTE: You must use the same location in your REST call as you used to obtain your subscription keys.
             //   For example, if you obtained your subscription keys from westus, replace "westcentralus" in the 

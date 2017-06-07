@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ProcessVehicleImages
 {
@@ -11,7 +8,6 @@ namespace ProcessVehicleImages
         public Guid ImageId { get; set; }
         public byte[] ImageBytes { get; set; }
         public List<ImageDataDetail> ImageDataValues { get; set; }
-        
     }
 
     public class ImageDataDetail
